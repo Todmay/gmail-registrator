@@ -1,0 +1,8 @@
+selenium 
+os
+time
+random
+requests 
+stem
+gspread
+oauth2client.service_account
