@@ -6,3 +6,4 @@ requests
 stem
 gspread
 oauth2client.service_account
+undetected_chromedriver

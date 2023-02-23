@@ -5,6 +5,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 ### отдельный элемент для выпадающих списков
 from selenium.webdriver.support.ui import Select
+
+### для входа от роботов
+#import undetected_chromedriver.v2 as uc
+#можно использовать как первую версию драйвера так и вторую
+import undetected_chromedriver as uc 
+from selenium.webdriver.common.keys import Keys
+
 import os
 
 import time
@@ -27,10 +34,27 @@ from config import default_country_id
 from config import spreadsheet_id
 from config import spreadsheet_name
 from config import CREDENTIALS_FILE
+from config import login_test
+from config import pass_test
+from config import reserve_mail
 
+### базовая задержка всех вводов
 base_delay = 2
 
+##### ссылки ####
+
+signup_link = 'https://accounts.google.com/signup/v2/webcreateaccount?service=mail&continue=https%3A%2F%2Fmail.google.com%2Fmail%2F&flowName=GlifWebSignIn&flowEntry=SignUp'
+signin_link = 'https://gmail.com/'
+
 #### all xpath ####
+
+# ссылки логина
+
+login_ex_path = '//*[@id="identifierId"]'
+login_ex_next_path = '//*[@id="identifierNext"]/div/button'
+pass_ex_path = '//*[@id="password"]/div[1]/div/div[1]/input'
+pass_ex_next_path = '//*[@id="passwordNext"]/div/button'
+
 
 # кнопка создания
 create_new_path = '//*[@id="yDmH0d"]/c-wiz/div/div[2]/div/div[2]/div/div[2]/div/div/div[1]/div/button'
@@ -73,6 +97,22 @@ skip_path = '//*[@id="view_container"]/div/div/div[2]/div/div[2]/div[2]/div[2]/d
 
 acsept_path = '//*[@id="view_container"]/div/div/div[2]/div/div[2]/div/div[1]/div/div/button'
 
+
+#### изменение аватара по ссылке если перейти в настройки####
+
+foto_button_path = '//*[@id="yDmH0d"]/c-wiz/div/div[2]/div/c-wiz/c-wiz/div/div[3]/div/div/c-wiz/section/div[2]/div/div/div[2]/button'
+add_button_path = '//*[@id="yDmH0d"]/c-wiz/main/div/div[2]/div/div/button'
+avatar_button_path = '//*[@id="yDmH0d"]/c-wiz/main/div/div[2]/c-wiz/div/div/div/section[1]/div/div[1]/div/div[1]/button[2]'
+avatar_ok_save_path = '//*[@id="yDmH0d"]/c-wiz[2]/div[2]/div[1]/div[2]/div[2]/div/button'
+
+#### изменение аватара из главного меню ####
+
+f_click_path = '//*[@id="gb"]/div[2]/div[3]/div[1]/div[2]'
+m_foto_button_path = '//*[@id="yDmH0d"]/c-wiz/div/div/div/div/div[2]/div[1]/c-wiz[1]/div/div[1]/div[1]/div[1]/div/button'
+m_add_button_path = '//*[@id="yDmH0d"]/c-wiz/main/div/div[2]/div/div/button'
+m_avatar_button_path = '//*[@id="yDmH0d"]/c-wiz/main/div/div[2]/c-wiz/div/div/div/section[1]/div/div[1]/div/div[1]/button[2]'
+m_avatar_ok_save_path = '//*[@id="yDmH0d"]/c-wiz[2]/div[2]/div[1]/div[2]/div[2]/div/button'
+
 #### all xpath ####
 
 ##### функциии подключения и работы с гугл доком
@@ -112,14 +152,15 @@ def google_sheet_data_grub(worksheet, row_number = 1):
     secondname = row[1]
     c_login = row[2]
     c_pass = row[3]
-    pic_url = row[4]
+#    pic_url = row[4]
+# от ссылки потом отказались ставим аватарку из списка
     try:
         status = row[6]
     except:
         status = ''
 
 
-    return firstname, secondname, c_login, c_pass, pic_url, status 
+    return firstname, secondname, c_login, c_pass, status 
 
 def google_sheet_data_log(worksheet, row_number, phone, status):
     # Записываем значение в строку
@@ -129,7 +170,7 @@ def google_sheet_data_log(worksheet, row_number, phone, status):
     return None
 
 ####### функции работы с вебдрайвером
-def browser_open():
+def browser_open_new():
 
 # Инициализируем драйвер
 # путь указывается только в случаях когда драйвер не установлен или не включен по умолчанию, указывается пусть в скобка веб драйвера
@@ -140,11 +181,23 @@ def browser_open():
     driver = webdriver.Chrome(ChromeDriverManager().install())
 
 # Открываем нужную вкладку
-    driver.get("https://gmail.com/")
+    driver.get(signin_link)
     time.sleep(base_delay)
 
     return driver
 
+def browser_open_not_new():  
+    chrome_options = uc.ChromeOptions()
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-popup-blocking")
+    chrome_options.add_argument("--profile-directory=Default")
+    chrome_options.add_argument("--ignore-certificate-errors")
+    chrome_options.add_argument("--disable-plugins-discovery")
+    chrome_options.add_argument("--incognito")
+    chrome_options.add_argument("user_agent=DN")
+    driver = uc.Chrome(options=chrome_options)
+    driver.delete_all_cookies()  
+    return driver
 
 def browser_close(driver):
 ### закрываем браузер
@@ -153,7 +206,27 @@ def browser_close(driver):
 
     return None
 
-def start_create(driver):
+def ex_login(driver, login_test, pass_test):
+
+    driver.get(signin_link)
+
+    loig_name = driver.find_element(by=By.XPATH, value=login_ex_path)
+    loig_name.send_keys(login_test)
+    time.sleep(base_delay)
+    nextt_l = driver.find_element(by=By.XPATH, value=login_ex_next_path)
+    nextt_l.click()
+    time.sleep(base_delay*4)
+    pass_name = driver.find_element(by=By.XPATH, value=pass_ex_path)
+    pass_name.send_keys(pass_test)
+    time.sleep(base_delay)
+    nextt_p = driver.find_element(by=By.XPATH, value=pass_ex_next_path)
+    nextt_p.click()
+    time.sleep(base_delay*4)
+# нужно перед тем как что-то делать ждать пока прогрузится вход
+
+    return None
+
+def start_create_new(driver):
 # если не находит кнопку, то ждем еще немного и повторяем, рекурсия
     try:
     	# Кликаем на переход к отправке
@@ -171,6 +244,11 @@ def start_create(driver):
         print('Нет выпадающего списка')
         time.sleep(base_delay*4)
         start_create(driver)
+
+    return None
+
+def start_create_ex(driver):
+    driver.get(signup_link)
 
     return None
 
@@ -234,15 +312,72 @@ def text_code_pull(driver, code):
 
     return None
 
-def avatar_pull(driver):
+def avatar_pull_link(driver):
+##### ждем загрузки, пока не загрузится перезапускаем функцию - рекурсия!
+    try:
+        driver.get('https://myaccount.google.com/personal-info')
+        foto_button = driver.find_element(by=By.XPATH, value=foto_button_path)
+        foto_button.click()
+        time.sleep(base_delay)
+        iframe = driver.find_element(by=By.XPATH, value='//*[@id="yDmH0d"]/iframe')
+        driver.switch_to.frame(iframe)
+        add_button = driver.find_element(by=By.XPATH, value=add_button_path)
+        add_button.click()
+        time.sleep(base_delay)
+        avatar_button = driver.find_element(by=By.XPATH, value=avatar_button_path)
+        avatar_button.click()
+        time.sleep(base_delay)
+        avatar_ok_save = driver.find_element(by=By.XPATH, value=avatar_ok_save_path)
+        avatar_ok_save.click()
+        time.sleep(base_delay)
+        driver.switch_to.default_content()
+    except:
+        time.sleep(base_delay*4)
+        avatar_pull_link(driver)
 
     return None
 
 
-def last_form_pull(driver):
+def avatar_pull_menu(driver):
+##### ждем загрузки, пока не загрузится перезапускаем функцию - рекурсия!
+    try:
+        foto_button = driver.find_element(by=By.XPATH, value=f_click_path)
+        foto_button.click()
+        time.sleep(base_delay)
+        iframe = driver.find_element(by=By.XPATH, value='//*[@id="gb"]/div[2]/div[3]/div[3]/iframe')
+        driver.switch_to.frame(iframe)
+        foto_button = driver.find_element(by=By.XPATH, value=m_foto_button_path)
+        foto_button.click()
+        time.sleep(base_delay)
+        driver.switch_to.default_content()
+        iframe = driver.find_element(by=By.XPATH, value='/html/body/iframe[2]')
+        driver.switch_to.frame(iframe)
+        add_button = driver.find_element(by=By.XPATH, value=m_add_button_path)
+        add_button.click()
+        time.sleep(base_delay)
+        avatar_button = driver.find_element(by=By.XPATH, value=m_avatar_button_path)
+        avatar_button.click()
+        time.sleep(base_delay)
+        avatar_ok_save = driver.find_element(by=By.XPATH, value=m_avatar_ok_save_path)
+        avatar_ok_save.click()
+        time.sleep(base_delay)
+        driver.switch_to.default_content()
+    except:
+        print('Смена аватара не вышла')
+        time.sleep(base_delay*4)
+        avatar_pull_menu(driver)
+    time.sleep(base_delay*4)
+    return None
+
+
+def last_form_pull(driver, reserve_mail):
+
+    reserv_email = driver.find_element(by=By.XPATH, value=reserv_email_path)
+    reserv_email.send_keys(reserve_mail)
     random_day = random.randint(1, 25)
     day = driver.find_element(by=By.XPATH, value=day_path)
     day.send_keys(random_day)
+    time.sleep(base_delay)
     random_year = random.randint(1970, 2000)
     year = driver.find_element(by=By.XPATH, value=year_path)
     year.send_keys(random_year)
@@ -255,8 +390,6 @@ def last_form_pull(driver):
 
     last_next = driver.find_element(by=By.XPATH, value=ff_nextt_path)
     last_next.click()
-
-
 
     return None
 
@@ -457,21 +590,21 @@ def new_number_activate():
     return number, id_number
 
 
-
-
 worksheet, row_count  = google_sheet_coonect()
 
 for row_num in range(1, row_count+1):
-    firstname, secondname, c_login, c_pass, pic_url, status = google_sheet_data_grub(worksheet, row_num)
+    firstname, secondname, c_login, c_pass, status = google_sheet_data_grub(worksheet, row_num)
     
     # скипуем если в гугл доке уже такой есть
     ##### EXIT #######    ##### EXIT #######
     if status == 'СОЗДАН': continue
 
+# заказчик попросил начинать с логина в существующий аккаунт
+    driver = browser_open_not_new()
+    ex_login(driver, login_test, pass_test)
 
-    # открываем форму и драйвер    
-    driver = browser_open()
-    start_create(driver)
+    # открываем форму создания нового   
+    start_create_ex(driver)
     time.sleep(base_delay*2)
     
 
@@ -536,16 +669,20 @@ for row_num in range(1, row_count+1):
 
     text_code_pull(driver, code)
 
+#### тут остановился
     time.sleep(base_delay*2)
 
-    last_form_pull(driver)
+    last_form_pull(driver, reserve_mail)
 
     time.sleep(base_delay*2)
 
     last_step_clk(driver)
 
 # длинное время создания так как после создания идет вход в аккаунт, которого по всей видимости надо дождаться
-    time.sleep(200)
+    time.sleep(base_delay*20)
+
+# после входа меняем аватарку
+    avatar_pull_menu(driver)
 
 
     logs_write(f'Логин создан - {c_login} : {c_pass} \n')
